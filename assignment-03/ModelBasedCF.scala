@@ -1,11 +1,13 @@
 import java.io.{File, PrintWriter}
 
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.mllib.recommendation.ALS
-import org.apache.spark.mllib.recommendation.Rating
+import org.apache.spark.mllib.recommendation.{ALS, Rating}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
 
 object ModelBasedCF {
+	val RATING_MIN_VAL = 0.0
+	val RATING_MAX_VAL = 5.0
+
 	def main(args: Array[String]): Unit = {
 		val conf = new SparkConf().setAppName("YeJoo_Park_task2_ModelBasedCF")
 				.setMaster("local")
@@ -20,16 +22,16 @@ object ModelBasedCF {
 
 		// Retrieve testing data set
 		val testingData = data
-						.filter(row => row != dataHeader)
-        				.map(_.split(',') match {
-							case Array(user, item) =>
-								(user.toInt, item.toInt)
-						})
+				.filter(row => row != dataHeader)
+				.map(_.split(',') match {
+					case Array(user, item) =>
+						(user.toInt, item.toInt)
+				})
 
 		// Retrieve the set
 		val testingSet: Set[(Int, Int)] = testingData
-        				.collect()
-        				.toSet
+				.collect()
+				.toSet
 
 		println("testingSet.size=" + testingSet.size)
 
@@ -42,7 +44,7 @@ object ModelBasedCF {
 				.filter(row => row != dataHeader)
 				.map(_.split(',') match {
 					case Array(user, product, rate, _) =>
-					Rating(user.toInt, product.toInt, rate.toDouble)
+						Rating(user.toInt, product.toInt, rate.toDouble)
 				})
 
 		println("ratings.count() before filter=" + trainRatings.count())
@@ -69,15 +71,15 @@ object ModelBasedCF {
 			model.predict(usersProducts).map { case Rating(user, product, rate) =>
 				((user, product), rate)
 			}
-					.map(r => (r._1, Math.max(r._2, 0.0f)))
-					.map(r => (r._1, Math.min(r._2, 5.0f)))
+					.map(r => (r._1, Math.max(r._2, RATING_MIN_VAL)))
+					.map(r => (r._1, Math.min(r._2, RATING_MAX_VAL)))
 
 		val ratesAndPreds = testRatings.map { case Rating(user, product, rate) =>
 			((user, product), rate)
 		}.join(predictions)
 
 		val absDiffBuckets = ratesAndPreds.map(r => (Math.abs(r._2._1 - r._2._2)).toInt)
-        		.map(d => Math.min(d, 4)).cache()
+				.map(d => Math.min(d, 4)).cache()
 
 		val MSE = ratesAndPreds.map { case ((user, product), (r1, r2)) =>
 			val err = (r1 - r2)
