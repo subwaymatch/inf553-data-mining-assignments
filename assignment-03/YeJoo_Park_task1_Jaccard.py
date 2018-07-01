@@ -147,7 +147,7 @@ def main():
 
 	print "similarPairs size=" + str(len(similarPairs))
 
-	outputFileName = "YeJoo_Park_SimilarMovies_Jaccard.txt"
+	outputFileName = "YeJoo_Park_SimilarMovie_Jaccard.txt"
 	printWriter = open(outputFileName, "a")
 
 	similarPairsList = list(similarPairs)

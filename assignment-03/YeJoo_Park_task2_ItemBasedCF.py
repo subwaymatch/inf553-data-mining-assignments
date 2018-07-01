@@ -92,7 +92,7 @@ trainRatings = ratings.filter(lambda r: (r[USER_INDEX], r[MOVIE_INDEX]) not in t
 print "testRatings size=" + str(testRatings.count())
 print "trainRatings size=" + str(trainRatings.count())
 
-# Find average values by user key
+# Find average values by movie key
 movieAverages = trainRatings\
 	.map(lambda r: (r[MOVIE_INDEX], r[RATING_INDEX]))\
 	.mapValues(lambda v: (v, 1)) \

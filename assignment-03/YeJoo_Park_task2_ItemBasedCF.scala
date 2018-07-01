@@ -109,7 +109,7 @@ object ItemBasedCF {
 		println("testRatings.size=" + testRatings.count())
 		println("trainRatings.size=" + trainRatings.count())
 
-		// Find average values by user key
+		// Find average values by movie key
 		movieAverages = trainRatings
 				.map(r => (r._2, r._3))
 				.mapValues(v => (v, 1))
