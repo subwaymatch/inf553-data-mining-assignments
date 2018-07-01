@@ -12,13 +12,16 @@ RATING_INDEX = 2
 RATING_MIN_VAL = 0.0
 RATING_MAX_VAL = 5.0
 
+
 def l2norm(vec):
 	return np.sqrt(np.dot(vec, vec))
+
 
 def cosSimilarity(vec1, l2vec1, vec2, l2vec2):
 	return np.dot(vec1, vec2) / (l2vec1 * l2vec2)
 
-def getKNNsAndSims(userId, neighborIds, k=3):
+
+def getKNNsAndSims(userId, neighborIds, k=5):
 	candSimilarities = []
 	simRow = simMat[userId]
 
@@ -27,12 +30,13 @@ def getKNNsAndSims(userId, neighborIds, k=3):
 
 	simOrder = np.argsort(candSimilarities)
 	knnIndices = simOrder[-k - 1: -1]
-	knnIdsAndSims =  []
+	knnIdsAndSims = []
 
 	for knnIndex in knnIndices:
 		knnIdsAndSims.append((neighborIds[knnIndex], candSimilarities[knnIndex]))
 
 	return knnIdsAndSims
+
 
 def predict(origUserId, origMovieId):
 	userId = userIndexMap[origUserId]
@@ -42,7 +46,7 @@ def predict(origUserId, origMovieId):
 	ratedUserOrigIds = list(ratedUsersByMovie[origMovieId])
 	ratedUserIds = [userIndexMap[origId] for origId in ratedUserOrigIds]
 
-	knnIdsAndSims = getKNNsAndSims(userId, ratedUserIds, 3)
+	knnIdsAndSims = getKNNsAndSims(userId, ratedUserIds, 5)
 
 	predictedRating = 0
 	simSum = 0
@@ -63,13 +67,12 @@ def predict(origUserId, origMovieId):
 
 	return predictedRating
 
+
 conf = SparkConf().setAppName("YeJoo_Park_task2_UserBasedCF") \
 	.setMaster("local")
 
 sc = SparkContext.getOrCreate(conf)
 sc.setLogLevel("ERROR")
-
-outputFileName = "YeJoo_Park_task2_ModelUserCF.txt"
 
 ratingsFilePath = sys.argv[1]
 testFilePath = sys.argv[2]
