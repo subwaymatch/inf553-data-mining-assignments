@@ -11,7 +11,7 @@ RATING_INDEX = 2
 RATING_MIN_VAL = 0.0
 RATING_MAX_VAL = 5.0
 
-def getKNNsAndSims(movieId, neighborIds, k=3):
+def getKNNsAndSims(movieId, neighborIds, k=5):
 	candSimilarities = []
 	simRow = simMat[movieId]
 
@@ -20,7 +20,7 @@ def getKNNsAndSims(movieId, neighborIds, k=3):
 
 	simOrder = np.argsort(candSimilarities)
 	knnIndices = simOrder[-k - 1: -1]
-	knnIdsAndSims =  []
+	knnIdsAndSims = []
 
 	for knnIndex in knnIndices:
 		knnIdsAndSims.append((neighborIds[knnIndex], candSimilarities[knnIndex]))
@@ -36,7 +36,7 @@ def predict(origUserId, origMovieId):
 	ratedMovieOrigIds = list(ratedMoviesByUser[origUserId])
 	ratedMovieIds = [movieIndexMap[origId] for origId in ratedMovieOrigIds]
 
-	knnIdsAndSims = getKNNsAndSims(movieId, ratedMovieIds, 3)
+	knnIdsAndSims = getKNNsAndSims(movieId, ratedMovieIds, 5)
 
 	predictedRating = 0
 	simSum = 0
@@ -143,7 +143,7 @@ for r in trainRatings.collect():
 
 simMat = np.zeros((numMovies, numMovies), dtype=float)
 
-for movieIndex in range(numUsers):
+for movieIndex in range(numMovies):
 	simMat[movieIndex][movieIndex] = 1
 
 data = sc.textFile(movieSimilarityFilePath)
@@ -153,9 +153,9 @@ similarityData = data.map(lambda l: l.split(","))\
 	.filter(lambda r: r[0] in movieIds and r[1] in movieIds)\
 	.collect()
 
-for index1, index2, similarity in similarityData:
-	simMat[movieIndexMap[index1]][movieIndexMap[index2]] = similarity
-	simMat[movieIndexMap[index2]][movieIndexMap[index1]] = similarity
+for movieOrigId1, movieOrigId2, similarity in similarityData:
+	simMat[movieIndexMap[movieOrigId1]][movieIndexMap[movieOrigId2]] = similarity
+	simMat[movieIndexMap[movieOrigId2]][movieIndexMap[movieOrigId1]] = similarity
 
 # print simMat
 
