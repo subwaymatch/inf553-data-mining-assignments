@@ -93,7 +93,7 @@ print "testRatings size=" + str(testRatings.count())
 print "trainRatings size=" + str(trainRatings.count())
 
 # Find average values by user key
-movieAverages = ratings\
+movieAverages = trainRatings\
 	.map(lambda r: (r[MOVIE_INDEX], r[RATING_INDEX]))\
 	.mapValues(lambda v: (v, 1)) \
 	.reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
@@ -101,23 +101,23 @@ movieAverages = ratings\
 	.collectAsMap()
 
 # Maps for faster user: movies and movie: users lookup
-ratedMoviesByUser = ratings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX]))\
+ratedMoviesByUser = trainRatings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX]))\
 	.groupByKey()\
 	.map(lambda r: (r[0], set(r[1])))\
 	.collectAsMap()
 
-ratedUsersByMovie = ratings.map(lambda r: (r[MOVIE_INDEX], r[USER_INDEX]))\
+ratedUsersByMovie = trainRatings.map(lambda r: (r[MOVIE_INDEX], r[USER_INDEX]))\
 	.groupByKey()\
 	.map(lambda r: (r[0], set(r[1])))\
 	.collectAsMap()
 
 # Normalize ratings
-ratings = ratings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX], r[RATING_INDEX] - movieAverages[r[MOVIE_INDEX]]))
+trainRatings = trainRatings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX], r[RATING_INDEX] - movieAverages[r[MOVIE_INDEX]]))
 
 # Extract unique users and movies
-userIds = ratings.map(lambda r: r[0]).distinct().collect()
+userIds = trainRatings.map(lambda r: r[0]).distinct().collect()
 userIds.sort()
-movieIds = ratings.map(lambda r: r[1]).distinct().collect()
+movieIds = trainRatings.map(lambda r: r[1]).distinct().collect()
 movieIds.sort()
 
 userIndexMap = {}
@@ -134,7 +134,7 @@ numMovies = len(movieIds)
 
 movieUserMat = np.zeros((numMovies, numUsers), dtype=float)
 
-for r in ratings.collect():
+for r in trainRatings.collect():
 	movieUserMat[movieIndexMap[r[MOVIE_INDEX]]][userIndexMap[r[USER_INDEX]]] = r[RATING_INDEX]
 
 # print userItemMat
@@ -148,6 +148,7 @@ data = sc.textFile(movieSimilarityFilePath)
 
 similarityData = data.map(lambda l: l.split(","))\
 	.map(lambda l: (int(l[0]), int(l[1]), float(l[2])))\
+	.filter(lambda r: r[0] in movieIds and r[1] in movieIds)\
 	.collect()
 
 for index1, index2, similarity in similarityData:
@@ -156,6 +157,10 @@ for index1, index2, similarity in similarityData:
 
 # print simMat
 
+# Exclude test sets of (userId, movieId) where no user in the training set has rated the movie
+testRatings = testRatings.filter(lambda r: r[USER_INDEX] in userIds and r[MOVIE_INDEX] in movieIds)
+
+print "testRatings size after excluding items=" + str(testRatings.count())
 
 # Make predictions based on KNNs of Cosine similarity (Pearson correlation)
 ratesAndPreds = testRatings.map(lambda r: ((r[0], r[1]), (r[2], predict(r[0], r[1]))))
