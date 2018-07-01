@@ -1,7 +1,7 @@
 import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.Map
 import scala.collection.mutable.ListBuffer
@@ -33,7 +33,7 @@ object UserBasedCF {
 		dotProduct(vec1, vec2) / (l2vec1 * l2vec2)
 	}
 
-	def getKNNsAndSims(userId: Int, neighborIds: Seq[Int], k: Int = 3): Seq[(Int, Double)] = {
+	def getKNNsAndSims(userId: Int, neighborIds: Seq[Int], k: Int = 5): Seq[(Int, Double)] = {
 		val candSimilarities: ListBuffer[Double] = ListBuffer[Double]()
 		val simRow: Array[Double] = simMat(userId)
 
@@ -60,7 +60,7 @@ object UserBasedCF {
 		val ratedUserOrigIds: Set[Int] = ratedUsersByMovie(origMovieId)
 		val ratedUserIds: Seq[Int] = ratedUserOrigIds.map(origId => userIndexMap(origId)).toSeq
 
-		val knnIdsAndSims: Seq[(Int, Double)] = getKNNsAndSims(userId, ratedUserIds, 3)
+		val knnIdsAndSims: Seq[(Int, Double)] = getKNNsAndSims(userId, ratedUserIds, 5)
 
 		var predictedRating: Double = 0.0
 		var simSum: Double = 0.0
@@ -88,7 +88,7 @@ object UserBasedCF {
 	}
 
 	def main(args: Array[String]): Unit = {
-		val conf = new SparkConf().setAppName("YeJoo_Park_task2_ModelBasedCF")
+		val conf = new SparkConf().setAppName("YeJoo_Park_task2_UserBasedCF")
 				.setMaster("local")
 		val sc = SparkContext.getOrCreate(conf)
 		sc.setLogLevel("ERROR")
@@ -100,9 +100,9 @@ object UserBasedCF {
 		var dataHeader = data.first()
 
 		val testingSet: Set[(Int, Int)] = data.filter(row => row != dataHeader)
-        		.map(r => r.split(","))
-        		.map(r => (r(USER_INDEX).toInt, r(MOVIE_INDEX).toInt))
-        		.collect().toSet
+				.map(r => r.split(","))
+				.map(r => (r(USER_INDEX).toInt, r(MOVIE_INDEX).toInt))
+				.collect().toSet
 
 		println("testSet.size=" + testingSet.size)
 
@@ -110,8 +110,8 @@ object UserBasedCF {
 		dataHeader = data.first()
 
 		var ratings = data.filter(r => r != dataHeader)
-        				.map(r => r.split(","))
-        				.map(r => (r(USER_INDEX).toInt, r(MOVIE_INDEX).toInt, r(RATING_INDEX).toDouble))
+				.map(r => r.split(","))
+				.map(r => (r(USER_INDEX).toInt, r(MOVIE_INDEX).toInt, r(RATING_INDEX).toDouble))
 
 		// Split ratings to training/test sets
 		var testRatings = ratings.filter(r => testingSet.contains(r._1, r._2))
@@ -122,22 +122,22 @@ object UserBasedCF {
 
 		// Find average values by user key
 		userAverages = trainRatings
-        				.map(r => (r._1, r._3))
-        				.mapValues(v => (v, 1))
-        				.reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2))
-        				.mapValues(v => v._1 / v._2)
-						.collectAsMap()
+				.map(r => (r._1, r._3))
+				.mapValues(v => (v, 1))
+				.reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2))
+				.mapValues(v => v._1 / v._2)
+				.collectAsMap()
 
 		// Maps for faster user => movies and movie => users lookup
 		ratedMoviesByUser = trainRatings.map(r => (r._1, r._2))
-        				.groupByKey()
-        				.map(r => (r._1, r._2.toSet))
-        				.collectAsMap()
+				.groupByKey()
+				.map(r => (r._1, r._2.toSet))
+				.collectAsMap()
 
 		ratedUsersByMovie = trainRatings.map(r => (r._2, r._1))
-						.groupByKey()
-						.map(r => (r._1, r._2.toSet))
-						.collectAsMap()
+				.groupByKey()
+				.map(r => (r._1, r._2.toSet))
+				.collectAsMap()
 
 		// Normalize ratings
 		trainRatings = trainRatings.map(r => (r._1, r._2, r._3 - userAverages(r._1)))
@@ -184,7 +184,7 @@ object UserBasedCF {
 		// Make predictions based on KNNs of Cosine similarity (Pearson correlation)
 		val ratesAndPreds: RDD[((Int, Int), (Double, Double))] = testRatings.map(r => ((r._1, r._2), (r._3, predict(r._1, r._2))))
 		val absDiffBuckets: RDD[Int] = ratesAndPreds.map(r => Math.abs(r._2._1 - r._2._2).toInt)
-        		.map(d => Math.min(d, 4)).cache()
+				.map(d => Math.min(d, 4)).cache()
 		val RMSE: Double = Math.sqrt(ratesAndPreds.map(r => Math.pow(r._2._1 - r._2._2, 2)).mean())
 
 		// Write predictions to file
