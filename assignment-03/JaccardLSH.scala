@@ -1,7 +1,7 @@
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
