@@ -116,9 +116,11 @@ trainRatings = trainRatings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX], r[RATI
 
 # Extract unique users and movies
 userIds = trainRatings.map(lambda r: r[0]).distinct().collect()
-userIds.sort()
 movieIds = trainRatings.map(lambda r: r[1]).distinct().collect()
-movieIds.sort()
+
+# Convert list to set
+userIds = set(userIds)
+movieIds = set(movieIds)
 
 userIndexMap = {}
 movieIndexMap = {}
