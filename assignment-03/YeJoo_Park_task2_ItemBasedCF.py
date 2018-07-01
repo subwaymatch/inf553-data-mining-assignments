@@ -168,7 +168,7 @@ print "testRatings size after excluding items=" + str(testRatings.count())
 ratesAndPreds = testRatings.map(lambda r: ((r[0], r[1]), (r[2], predict(r[0], r[1]))))
 absDiffBuckets = ratesAndPreds.map(lambda r: int(abs(r[1][0] - r[1][1])))\
 	.map(lambda d: min(d, 4)).cache()
-RMSE  = ratesAndPreds.map(lambda r: (r[1][0] - r[1][1]) ** 2).mean()
+RMSE = ratesAndPreds.map(lambda r: (r[1][0] - r[1][1]) ** 2).mean()
 
 # Write predictions to file
 outputFileName = "YeJoo_Park_ItemBasedCF.txt"
