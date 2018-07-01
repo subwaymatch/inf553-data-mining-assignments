@@ -34,7 +34,6 @@ def getKNNsAndSims(userId, neighborIds, k=3):
 
 	return knnIdsAndSims
 
-
 def predict(origUserId, origMovieId):
 	userId = userIndexMap[origUserId]
 	movieId = movieIndexMap[origMovieId]
@@ -101,7 +100,7 @@ print "testRatings size=" + str(testRatings.count())
 print "trainRatings size=" + str(trainRatings.count())
 
 # Find average values by user key
-userAverages = ratings\
+userAverages = trainRatings\
 	.map(lambda r: (r[USER_INDEX], r[RATING_INDEX]))\
 	.mapValues(lambda v: (v, 1)) \
 	.reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
@@ -109,23 +108,23 @@ userAverages = ratings\
 	.collectAsMap()
 
 # Maps for faster user: movies and movie: users lookup
-ratedMoviesByUser = ratings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX]))\
+ratedMoviesByUser = trainRatings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX]))\
 	.groupByKey()\
 	.map(lambda r: (r[0], set(r[1])))\
 	.collectAsMap()
 
-ratedUsersByMovie = ratings.map(lambda r: (r[MOVIE_INDEX], r[USER_INDEX]))\
+ratedUsersByMovie = trainRatings.map(lambda r: (r[MOVIE_INDEX], r[USER_INDEX]))\
 	.groupByKey()\
 	.map(lambda r: (r[0], set(r[1])))\
 	.collectAsMap()
 
 # Normalize ratings
-ratings = ratings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX], r[RATING_INDEX] - userAverages[r[USER_INDEX]]))
+trainRatings = trainRatings.map(lambda r: (r[USER_INDEX], r[MOVIE_INDEX], r[RATING_INDEX] - userAverages[r[USER_INDEX]]))
 
 # Extract unique users and movies
-userIds = ratings.map(lambda r: r[0]).distinct().collect()
+userIds = trainRatings.map(lambda r: r[0]).distinct().collect()
 userIds.sort()
-movieIds = ratings.map(lambda r: r[1]).distinct().collect()
+movieIds = trainRatings.map(lambda r: r[1]).distinct().collect()
 movieIds.sort()
 
 userIndexMap = {}
@@ -142,7 +141,7 @@ numMovies = len(movieIds)
 
 userItemMat = np.zeros((numUsers, numMovies), dtype=float)
 
-for r in ratings.collect():
+for r in trainRatings.collect():
 	userItemMat[userIndexMap[r[USER_INDEX]]][movieIndexMap[r[MOVIE_INDEX]]] = r[RATING_INDEX]
 
 # print userItemMat
@@ -160,9 +159,14 @@ for row1, row2 in itertools.combinations(range(numUsers), 2):
 
 # print simMat
 
+# Exclude test sets of (userId, movieId) where no user in the training set has rated the movie
+testRatings = testRatings.filter(lambda r: r[USER_INDEX] in userIds and r[MOVIE_INDEX] in movieIds)
+
+print "testRatings size after excluding items=" + str(testRatings.count())
 
 # Make predictions based on KNNs of Cosine similarity (Pearson correlation)
 ratesAndPreds = testRatings.map(lambda r: ((r[0], r[1]), (r[2], predict(r[0], r[1]))))
+
 absDiffBuckets = ratesAndPreds.map(lambda r: int(abs(r[1][0] - r[1][1])))\
 	.map(lambda d: min(d, 4)).cache()
 RMSE  = ratesAndPreds.map(lambda r: (r[1][0] - r[1][1]) ** 2).mean()
